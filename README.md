@@ -2,7 +2,7 @@
 
 ## Bare Metal
 
-![Hypervisor](hypervisor.png)
+![Hypervisor](imgs/hypervisor.png)
 
 ## Subnets
 
@@ -13,4 +13,4 @@
 | ragnarok-wiki       | 172.16.0.24       | /30    | 255.255.255.252     | 172.16.0.24    | 172.16.0.25    | 172.16.0.26                  | 172.16.0.27    |
 | media               | 172.16.0.28       | /30    | 255.255.255.252     | 172.16.0.28    | 172.16.0.29    | 172.16.0.30                  | 172.16.0.31    |
 
-![Subnet Diagram](subnet_diagram.jpg)
+![Subnet Diagram](imgs/subnet_diagram.jpg)

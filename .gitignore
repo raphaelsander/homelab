@@ -1,2 +1,8 @@
 # Draw.io backup files
 *.drawio.bkp
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+crash.log

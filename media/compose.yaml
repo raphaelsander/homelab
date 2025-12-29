@@ -14,13 +14,38 @@ services:
         reservations:
           memory: '2048M'
     volumes:
-      - config:/config
+      - jellyfin-config:/config
       - type: bind
         source: /mnt/media
         target: /mnt/media
     restart: 'unless-stopped'
     devices:
       - /dev/dri/:/dev/dri/
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    deploy:
+      resources:
+        limits:
+          memory: '1024M'
+        reservations:
+          memory: '512M'
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT=6881
+    volumes:
+      - qbittorrent-config:/config
+      - /mnt/media:/mnt/media
+    ports:
+      - 8080:8080
+      - 6881:6881
+      - 6881:6881/udp
+    restart: unless-stopped
 volumes:
-  config:
+  jellyfin-config:
+    driver: local
+  qbittorrent-config:
     driver: local

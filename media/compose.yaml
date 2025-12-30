@@ -44,8 +44,29 @@ services:
       - 6881:6881
       - 6881:6881/udp
     restart: unless-stopped
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    deploy:
+      resources:
+        limits:
+          memory: '1024M'
+        reservations:
+          memory: '512M'
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - radarr-config:/config
+      - /mnt/media:/mnt/media
+    ports:
+      - 7878:7878
+    restart: unless-stopped
 volumes:
   jellyfin-config:
     driver: local
   qbittorrent-config:
+    driver: local
+  radarr-config:
     driver: local

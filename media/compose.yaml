@@ -63,10 +63,31 @@ services:
     ports:
       - 7878:7878
     restart: unless-stopped
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    deploy:
+      resources:
+        limits:
+          memory: '1024M'
+        reservations:
+          memory: '512M'
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - sonarr-config:/config
+      - /mnt/media:/mnt/media
+    ports:
+      - 8989:8989
+    restart: unless-stopped
 volumes:
   jellyfin-config:
     driver: local
   qbittorrent-config:
     driver: local
   radarr-config:
+    driver: local
+  sonarr-config:
     driver: local

@@ -58,10 +58,12 @@ resource "null_resource" "ansible" {
 
     provisioner "local-exec" {
         command = <<-EOF
-            sleep 60
-            ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
+            ANSIBLE_HOST_KEY_CHECKING=False \
+            ansible-playbook \
                 -i ${split("/", proxmox_lxc.media.network[0].ip)[0]}, \
-                --user root playbook.yml
+                --user root \
+                --timeout 10 \
+                playbook.yml
         EOF
     }
 }

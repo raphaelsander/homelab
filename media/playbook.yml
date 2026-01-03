@@ -1,7 +1,16 @@
 - hosts: all
   become: yes
+  gather_facts: false
 
   tasks:
+    - name: Wait for SSH to become available
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        delay: 2
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
     - name: Upgrade the OS (apt-get dist-upgrade)
       ansible.builtin.apt:
         upgrade: dist
@@ -12,12 +21,12 @@
         pkg:
           - curl
         state: latest
-    
+
     - name: Download Docker installation script
       ansible.builtin.get_url:
         url: https://get.docker.com
         dest: /tmp/get-docker.sh
         mode: '0770'
-    
+
     - name: Install Docker using the installation script
       ansible.builtin.shell: /tmp/get-docker.sh

@@ -19,8 +19,11 @@ services:
         source: /mnt/media
         target: /mnt/media
     restart: 'unless-stopped'
-    devices:
-      - /dev/dri/:/dev/dri/
+    security_opt:
+      - apparmor:unconfined
+    # Disable hardware acceleration for now
+    # devices:
+    #   - /dev/dri/:/dev/dri/
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
@@ -44,6 +47,8 @@ services:
       - 6881:6881
       - 6881:6881/udp
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
@@ -63,6 +68,8 @@ services:
     ports:
       - 7878:7878
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
@@ -82,6 +89,8 @@ services:
     ports:
       - 8989:8989
     restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
 volumes:
   jellyfin-config:
     driver: local

@@ -1,6 +1,8 @@
 - hosts: all
   become: yes
   gather_facts: false
+  collections:
+    - community.docker
 
   tasks:
     - name: Wait for SSH to become available
@@ -30,3 +32,24 @@
 
     - name: Install Docker using the installation script
       ansible.builtin.shell: /tmp/get-docker.sh
+
+    - name: Create media directory
+      ansible.builtin.file:
+        path: /opt/media
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy compose file
+      ansible.builtin.copy:
+        src: compose.yaml
+        dest: /opt/media/compose.yaml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Start Docker compose stack
+      community.docker.docker_compose_v2:
+        project_src: /opt/media/
+        state: present

@@ -91,6 +91,27 @@ services:
     restart: unless-stopped
     security_opt:
       - apparmor:unconfined
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    deploy:
+      resources:
+        limits:
+          memory: '1024M'
+        reservations:
+          memory: '512M'
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - bazarr-config:/config
+      - /mnt/media:/mnt/media
+    ports:
+      - 6767:6767
+    restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
 volumes:
   jellyfin-config:
     driver: local
@@ -99,4 +120,6 @@ volumes:
   radarr-config:
     driver: local
   sonarr-config:
+    driver: local
+  bazarr-config:
     driver: local

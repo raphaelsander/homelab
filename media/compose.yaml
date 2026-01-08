@@ -112,6 +112,28 @@ services:
     restart: unless-stopped
     security_opt:
       - apparmor:unconfined
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    deploy:
+      resources:
+        limits:
+          memory: '512M'
+        reservations:
+          memory: '256M'
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - AUTO_UPDATE=true
+    volumes:
+      - jackett-config:/config
+      - jackett-downloads:/downloads
+    ports:
+      - 9117:9117
+    restart: unless-stopped
+    security_opt:
+      - apparmor:unconfined
 volumes:
   jellyfin-config:
     driver: local
@@ -122,4 +144,8 @@ volumes:
   sonarr-config:
     driver: local
   bazarr-config:
+    driver: local
+  jackett-config:
+    driver: local
+  jackett-downloads:
     driver: local

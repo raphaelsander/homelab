@@ -21,9 +21,8 @@ services:
     restart: 'unless-stopped'
     security_opt:
       - apparmor:unconfined
-    # Disable hardware acceleration for now
-    # devices:
-    #   - /dev/dri/:/dev/dri/
+    devices:
+      - /dev/dri/:/dev/dri/
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent

@@ -65,6 +65,11 @@ resource "proxmox_virtual_environment_container" "media" {
     volume = "zfs-tank"
     size   = "300G"
   }
+
+  device_passthrough {
+    path = "/dev/dri/renderD128"
+    gid  = 993
+  }
   
   features {
     nesting = true

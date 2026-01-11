@@ -1,66 +1,80 @@
 terraform {
   required_providers {
     proxmox = {
-      source  = "telmate/proxmox"
-      version = "3.0.2-rc07"
+      source  = "bpg/proxmox"
+      version = "0.92.0"
     }
   }
 }
 
 provider "proxmox" {
-  pm_api_url = "https://<domain>/api2/json"
-  pm_debug   = true
-  # pm_tls_insecure = true
+  endpoint = var.proxmox_endpoint
+  api_token = var.proxmox_api_token
+  insecure = false
 }
 
-resource "proxmox_lxc_guest" "media" {
-  name        = var.hostname
-  privileged  = true
-  target_node = "proxmox-1"
-  password    = var.root_password
-  template {
-    file    = "ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
-    storage = "local"
+resource "proxmox_virtual_environment_container" "media" {
+  vm_id       = var.vm_id
+  node_name   = "proxmox-1"
+  description = "Media Container, managed by Terraform"
+  
+  initialization {
+    hostname = var.hostname
+    user_account {
+      password = var.root_password
+      keys     = [file("~/.ssh/id_rsa.pub")]
+    }
+    ip_config {
+      ipv4 {
+        address = var.ipv4_address
+        gateway = var.ipv4_gateway
+      }
+    }
+    dns {
+      servers = [var.ipv4_gateway, "8.8.8.8", "1.1.1.1"]
+    }
   }
-  tags = ["docker", "ubuntu"]
+  
+  operating_system {
+    template_file_id = var.template_file_id
+    type             = var.operational_system_type
+  }
+  
   cpu {
     cores = 4
   }
-  memory = 4096
-  swap   = 512
-  startup_shutdown {}
-  ssh_public_keys = file("~/.ssh/id_rsa.pub")
+  
+  memory {
+    dedicated = 4096
+    swap      = 512
+  }
+
+  network_interface {
+    name    = "veth0"
+    bridge  = "vmbr1"
+    vlan_id = 4
+  }
+  
+  disk {
+    datastore_id = "local-lvm"
+    size         = 16
+  }
+  
+  mount_point {
+    path   = "/mnt/media"
+    volume = "zfs-tank"
+    size   = "300G"
+  }
+  
   features {
-    privileged {
-      nesting = true
-    }
-  }
-  root_mount {
-    size    = "8G"
-    storage = "local-lvm"
-  }
-  mount {
-    slot       = "mp0"
-    storage    = "zfs-tank"
-    guest_path = "/mnt/media"
-    size       = "300G"
-    backup     = false
-    replicate  = false
-    type       = "data"
-  }
-  network {
-    id           = 0
-    name         = "eth0"
-    bridge       = "vmbr1"
-    ipv4_address = "172.16.1.30/30"
-    ipv4_gateway = "172.16.1.29"
-    vlan_native  = 4
+    nesting = true
+    keyctl  = true
   }
 }
 
 resource "null_resource" "ansible" {
   triggers = {
-    lxc_id        = proxmox_lxc_guest.media.id
+    container_id  = proxmox_virtual_environment_container.media.id
     playbook_hash = filesha1("playbook.yml")
   }
 
@@ -68,7 +82,7 @@ resource "null_resource" "ansible" {
     command = <<-EOF
       ANSIBLE_HOST_KEY_CHECKING=False \
       ansible-playbook \
-        -i ${split("/", proxmox_lxc_guest.media.network[0].ipv4_address)[0]}, \
+        -i ${split("/", var.ipv4_address)[0]}, \
         --user root \
         --timeout 10 \
         playbook.yml

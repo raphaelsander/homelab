@@ -19,8 +19,6 @@ services:
         source: /mnt/media
         target: /mnt/media
     restart: 'unless-stopped'
-    security_opt:
-      - apparmor:unconfined
     devices:
       - /dev/dri/:/dev/dri/
   qbittorrent:
@@ -46,8 +44,6 @@ services:
       - 6881:6881
       - 6881:6881/udp
     restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
@@ -67,8 +63,6 @@ services:
     ports:
       - 7878:7878
     restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
@@ -88,8 +82,6 @@ services:
     ports:
       - 8989:8989
     restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
   bazarr:
     image: lscr.io/linuxserver/bazarr:latest
     container_name: bazarr
@@ -109,8 +101,6 @@ services:
     ports:
       - 6767:6767
     restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
   jackett:
     image: lscr.io/linuxserver/jackett:latest
     container_name: jackett
@@ -131,8 +121,6 @@ services:
     ports:
       - 9117:9117
     restart: unless-stopped
-    security_opt:
-      - apparmor:unconfined
 volumes:
   jellyfin-config:
     driver: local

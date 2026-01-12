@@ -9,7 +9,8 @@ terraform {
 
 provider "proxmox" {
   endpoint = var.proxmox_endpoint
-  api_token = var.proxmox_api_token
+  username = var.proxmox_username
+  password = var.proxmox_password
   insecure = false
 }
 
@@ -70,10 +71,11 @@ resource "proxmox_virtual_environment_container" "media" {
     path = "/dev/dri/renderD128"
     gid  = 993
   }
+
+  unprivileged = true
   
   features {
     nesting = true
-    keyctl  = true
   }
 }
 

@@ -1,0 +1,241 @@
+---
+- name: Provisione VM VyOS no Proxmox
+  hosts: pve
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Check VyOS ISO image
+      ansible.builtin.stat:
+        path: "{{ vyos_image_path }}"
+      register: iso
+
+    - name: Download ISO VyOS
+      when: not iso.stat.exists
+      ansible.builtin.get_url:
+        url: https://community-downloads.vyos.dev/stream/1.5-stream-2025-Q2/vyos-1.5-stream-2025-Q2-generic-amd64.iso
+        dest: "{{ vyos_image_path }}"
+
+    - name: Render user-data
+      ansible.builtin.template:
+        src: roles/proxmox_vyos/templates/user-data.j2
+        dest: /tmp/user-data
+        mode: '0644'
+
+    - name: Render network-config (disable DHCP from cloud-init)
+      ansible.builtin.template:
+        src: roles/proxmox_vyos/templates/network-config.j2
+        dest: /tmp/network-config
+        mode: '0644'
+
+    - name: Render meta-data
+      ansible.builtin.template:
+        src: roles/proxmox_vyos/templates/meta-data.j2
+        dest: /tmp/meta-data
+        mode: '0644'
+
+    - name: Build seed.iso (NoCloud)
+      ansible.builtin.command:
+        cmd: mkisofs -joliet -rock -volid cidata -output /var/lib/vz/template/iso/seed-{{ vmid }}.iso /tmp/meta-data /tmp/user-data /tmp/network-config
+      args:
+        creates: "/var/lib/vz/template/iso/seed-{{ vmid }}.iso"
+
+    - name: Criar VM no Proxmox
+      ansible.builtin.command:
+        cmd: >-
+          qm create {{ vmid }}
+          --name {{ vm_name }}
+          --memory {{ memory_mb }}
+          --cores {{ vcpus }}
+          --net0 virtio,bridge={{ wan_bridge }}
+          --net1 virtio,bridge={{ lan_bridge }}
+          --ide0 media=cdrom,file=local:seed-{{ vmid }}.iso
+          --ide1 media=cdrom,file=local:iso/vyos-1.5-stream-2025-Q2-generic-amd64.iso
+          --virtio0 local-lvm:16
+          --boot order=virtio0
+      args:
+        creates: "/etc/pve/qemu-server/{{ vmid }}.conf"
+
+#     - name: Importar disco QCOW2
+#       ansible.builtin.command:
+#         cmd: qm importdisk {{ vmid }} {{ vyos_image_path }} {{ storage_name }}
+#       args:
+#         creates: "/var/lib/vz/images/{{ vmid }}/vm-{{ vmid }}-disk-0.*"
+
+#     - name: Anexar disco virtio0 e seed.iso
+#       ansible.builtin.shell: |
+#         qm set {{ vmid }} --virtio0 {{ storage_name }}:{{ vmid }}/vm-{{ vmid }}-disk-0.raw
+#         qm set {{ vmid }} --ide2 {{ iso_storage }}:iso/seed-{{ vmid }}.iso,media=cdrom
+#         qm set {{ vmid }} --boot order=virtio0
+#         qm set {{ vmid }} --serial0 socket --vga serial0
+
+#     - name: Iniciar VM
+#       ansible.builtin.command:
+#         cmd: qm start {{ vmid }}
+
+# - name: Configurar VyOS (interfaces, DNS autoritativo, HAProxy, PKI)
+#   hosts: vyos
+#   gather_facts: no
+#   vars:
+#     # converte CIDR para IP sem máscara para regras DNS
+#     wan_ip_nocidr: "{{ wan_ip.split('/') | first }}"
+#   tasks:
+#     - name: Aguardar SSH do VyOS
+#       ansible.builtin.wait_for:
+#         host: "{{ inventory_hostname }}"
+#         port: 22
+#         timeout: 600
+
+#     - name: Configurar VyOS – rede, DNS e HAProxy
+#       vyos.vyos.vyos_config:
+#         save: true
+#         comment: "Automação inicial VyOS (WAN/LAN/DNS/HAProxy)"
+#         lines:
+#           # Interfaces
+#           - set interfaces ethernet eth0 address '{{ wan_ip }}'
+#           - set interfaces ethernet eth0 description 'WAN'
+#           - set interfaces ethernet eth1 address '{{ lan_ip }}'
+#           - set interfaces ethernet eth1 description 'LAN-172.16.1.0/30'
+#           # Rota default (opcional, ajuste se necessário)
+#           - set protocols static route 0.0.0.0/0 next-hop '{{ wan_gw }}'
+#           # SSH
+#           - set service ssh port '22'
+#           # DNS recursor + zona autoritativa "local.blackcat.dev.br"
+#           - set service dns forwarding listen-address '{{ wan_ip_nocidr }}'
+#           - set service dns forwarding listen-address '127.0.0.1'
+#           - set service dns forwarding allow-from '192.168.0.0/24'
+#           - set service dns forwarding allow-from '172.16.1.0/30'
+#           - set service dns forwarding authoritative-domain '{{ zone_delegada }}' records ns @ target 'vyos.{{ zone_delegada }}'
+#           - set service dns forwarding authoritative-domain '{{ zone_delegada }}' records a 'vyos' address '{{ wan_ip_nocidr }}'
+#           - set service dns forwarding authoritative-domain '{{ zone_delegada }}' records a 'any'  address '{{ wan_ip_nocidr }}'
+#           - set service dns forwarding authoritative-domain '{{ zone_delegada }}' records a 'jellyfin' address '{{ wan_ip_nocidr }}'
+#           # HAProxy – backend Jellyfin (SSL bridging para 172.16.1.2:9443)
+#           - set load-balancing haproxy backend 'bk-jellyfin' description 'Jellyfin backend https://{{ backend_ip }}:{{ backend_port }}'
+#           - set load-balancing haproxy backend 'bk-jellyfin' mode 'http'
+#           - set load-balancing haproxy backend 'bk-jellyfin' server 'j1' address '{{ backend_ip }}'
+#           - set load-balancing haproxy backend 'bk-jellyfin' server 'j1' port '{{ backend_port }}'
+#           - set load-balancing haproxy backend 'bk-jellyfin' server 'j1' ssl
+#           # Serviço HTTPS com SNI/Host header do domínio Jellyfin
+#           - set load-balancing haproxy service 'https' description 'HTTPS reverse proxy'
+#           - set load-balancing haproxy service 'https' mode 'http'
+#           - set load-balancing haproxy service 'https' listen-address '{{ wan_ip_nocidr }}'
+#           - set load-balancing haproxy service 'https' port '443'
+#           - set load-balancing haproxy service 'https' rule 10 domain-name '{{ fqdn }}'
+#           - set load-balancing haproxy service 'https' rule 10 set backend 'bk-jellyfin'
+
+#     - name: (Opcional) Configurar ACME http-01 nativo do VyOS
+#       when: acme_method == 'http-01'
+#       vyos.vyos.vyos_config:
+#         save: true
+#         comment: "ACME http-01 (nativo VyOS)"
+#         lines:
+#           - set pki certificate 'le-jellyfin' acme domain-name '{{ fqdn }}'
+#           - set pki certificate 'le-jellyfin' acme email '{{ acme_email }}'
+#           - set pki certificate 'le-jellyfin' acme listen-address '{{ wan_ip_nocidr }}'
+#           - set load-balancing haproxy service 'https' ssl certificate 'le-jellyfin'
+
+#     - name: Reiniciar serviços DNS/HAProxy
+#       vyos.vyos.vyos_command:
+#         commands:
+#           - restart dns forwarding
+#           - restart load-balancing haproxy
+
+# - name: (dns-01) Emitir certificado via Cloudflare e importar no VyOS
+#   hosts: localhost
+#   gather_facts: no
+#   vars:
+#     le_dir: ./_letsencrypt
+#     account_key: "{{ le_dir }}/account.key"
+#     csr_file: "{{ le_dir }}/{{ fqdn }}.csr"
+#     cert_file: "{{ le_dir }}/{{ fqdn }}.crt"
+#     fullchain_file: "{{ le_dir }}/{{ fqdn }}-fullchain.crt"
+#     privkey_file: "{{ le_dir }}/{{ fqdn }}.key"
+#   tasks:
+#     - name: Criar diretório local
+#       ansible.builtin.file:
+#         path: "{{ le_dir }}"
+#         state: directory
+#         mode: '0700'
+
+#     - name: Gerar chave de conta ACME
+#       community.crypto.openssl_privatekey:
+#         path: "{{ account_key }}"
+#       when: acme_method == 'dns-01'
+
+#     - name: Gerar chave e CSR para o domínio
+#       when: acme_method == 'dns-01'
+#       block:
+#         - community.crypto.openssl_privatekey:
+#             path: "{{ privkey_file }}"
+
+#         - community.crypto.openssl_csr:
+#             path: "{{ csr_file }}"
+#             privatekey_path: "{{ privkey_file }}"
+#             common_name: "{{ fqdn }}"
+
+#     - name: Solicitar desafio dns-01 (1ª etapa)
+#       when: acme_method == 'dns-01'
+#       community.crypto.acme_certificate:
+#         account_key_src: "{{ account_key }}"
+#         account_email: "{{ acme_email }}"
+#         acme_version: 2
+#         acme_directory: https://acme-v02.api.letsencrypt.org/directory
+#         csr: "{{ csr_file }}"
+#         cert: "{{ cert_file }}"
+#         fullchain: "{{ fullchain_file }}"
+#         challenge: dns-01
+#       register: acme_challenge
+
+#     - name: Criar TXT(s) no Cloudflare para o desafio
+#       when: acme_method == 'dns-01' and acme_challenge is changed
+#       community.general.cloudflare_dns:
+#         zone: "{{ cloudflare_zone }}"
+#         record: "{{ item.key | regex_replace('\\.' + cloudflare_zone + '$', '') }}"  # extrai subdomínio
+#         type: TXT
+#         value: "{{ item.value | first }}"
+#         ttl: 120
+#         api_token: "{{ cloudflare_token }}"
+#         state: present
+#       loop: "{{ acme_challenge.challenge_data_dns | dict2items }}"
+
+#     - name: Esperar propagação de DNS (best-effort)
+#       when: acme_method == 'dns-01' and acme_challenge is changed
+#       ansible.builtin.pause:
+#         seconds: 60
+
+#     - name: Validar e baixar certificado (2ª etapa)
+#       when: acme_method == 'dns-01'
+#       community.crypto.acme_certificate:
+#         account_key_src: "{{ account_key }}"
+#         account_email: "{{ acme_email }}"
+#         acme_version: 2
+#         acme_directory: https://acme-v02.api.letsencrypt.org/directory
+#         csr: "{{ csr_file }}"
+#         cert: "{{ cert_file }}"
+#         fullchain: "{{ fullchain_file }}"
+#         challenge: dns-01
+#         data: "{{ acme_challenge }}"
+
+#     - name: Copiar cert e key para o VyOS
+#       when: acme_method == 'dns-01'
+#       ansible.builtin.slurp:
+#         src: "{{ item }}"
+#       loop:
+#         - "{{ fullchain_file }}"
+#         - "{{ privkey_file }}"
+#       register: slurped
+
+#     - name: Importar no PKI do VyOS e aplicar no HAProxy
+#       when: acme_method == 'dns-01'
+#       delegate_to: vyos1
+#       vars:
+#         cert_b64: "{{ (slurped.results[0].content | b64decode).decode() }}"
+#         key_b64:  "{{ (slurped.results[1].content | b64decode).decode() }}"
+#         cert_one_line: "{{ cert_b64.split('\n')[1:-1] | join('') }}"
+#         key_one_line:  "{{ key_b64.split('\n')[1:-1]  | join('') }}"
+#       vyos.vyos.vyos_config:
+#         save: true
+#         lines:
+#           - delete pki certificate 'le-jellyfin'
+#           - set pki certificate 'le-jellyfin' certificate '{{ cert_one_line }}'
+#           - set pki certificate 'le-jellyfin' private key '{{ key_one_line }}'
+#           - set load-balancing haproxy service 'https' ssl certificate 'le-jellyfin'

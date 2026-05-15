@@ -1,0 +1,9 @@
+#cloud-config
+vyos_config_commands:
+  - set system host-name 'vyos-rp'
+  - delete interfaces ethernet eth0 address 'dhcp'
+  - set interfaces ethernet eth0 address '{{ wan_ip }}'
+  - set interfaces ethernet eth1 address '{{ lan_ip }}'
+  - set service ssh port '22'
+  - commit
+  - save

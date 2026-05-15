@@ -11,12 +11,16 @@ variable "vm_id" {
   type    = string
 }
 variable "proxmox_endpoint" {
+  description = "Proxmox VE API endpoint URL, e.g., https://proxmox_domain_or_ip:port"
   type    = string
-  default = "https://proxmox_domain_or_ip:port"
 }
-variable "proxmox_api_token" {
+variable "proxmox_username" {
   type    = string
-  default = "root@pam!terraform=your_token_here"
+  default = "root@pam"
+}
+variable "proxmox_password" {
+  description = "Proxmox password for 'root@pam' user by default."
+  type    = string
   sensitive = true
 }
 variable "ipv4_address" {

@@ -21,8 +21,7 @@
     - name: Install a list of packages
       ansible.builtin.apt:
         pkg:
-          - curl
-          - intel-gpu-tools
+          - intel-opencl-icd
         state: latest
 
     - name: Download Docker installation script

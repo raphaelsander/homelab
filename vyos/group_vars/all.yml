@@ -1,0 +1,47 @@
+# =======================
+# Proxmox / VM
+# =======================
+vmid: 106
+vm_name: vyos-rp
+vm_node: pve # nome do nó no cluster PVE (qm list)
+storage_name: local-lvm # storage para o disco
+iso_storage: local # storage tipo directory contendo ISOs
+wan_bridge: vmbr0
+lan_bridge: vmbr1
+vcpus: 2
+memory_mb: 1024
+
+
+# Caminho para a imagem QCOW2 com cloud-init já habilitado
+# (copie a imagem para o host Proxmox em /tmp, ou ajuste)
+vyos_image_path: /tmp/vyos-cloud-init.qcow2
+
+
+# =======================
+# Endereços/IPs
+# =======================
+wan_ip: 192.168.0.4/24
+wan_gw: 192.168.0.1
+lan_ip: 172.16.1.1/30
+backend_ip: 172.16.1.2
+backend_port: 9443
+fqdn: <fqdn>
+zone_delegada: <zone>
+
+
+# =======================
+# Let’s Encrypt (escolha o método)
+# =======================
+acme_method: dns-01 # "dns-01" (recomendado) ou "http-01"
+acme_email: [email protected]
+
+
+# Cloudflare (dns-01)
+cloudflare_zone: blackcat.dev.br
+cloudflare_token: "{{ lookup('env', 'CF_API_TOKEN') }}"
+
+
+# =======================
+# Acesso inicial VyOS via cloud-init
+# =======================
+ssh_authorized_key: "ssh-ed25519 AAAA... seu@pc"
